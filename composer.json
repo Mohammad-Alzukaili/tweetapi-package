@@ -1,0 +1,16 @@
+{
+  "name": "mawdoo3/tweets",
+  "authors": [
+    {
+      "name": "Mohammad Alzukaili",
+      "email": "mohammad.alzukaili@mawdoo3.com"
+    }
+  ],
+  "require": {},
+  "autoload": {
+    "psr-4": {
+      "Tests\\": "tests/",
+      "Mawdoo3\\Tweets\\": "package/twitter-userTimeLine/src/"
+    }
+  }
+}
