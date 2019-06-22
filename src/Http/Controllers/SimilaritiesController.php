@@ -27,13 +27,21 @@ class SimilaritiesController extends Controller
     function getSimilarities()
     {
 
+
+        //to get all similarities and store them inside the table similarities
+        $new_check = new GetTweetsController();
+        $new_check->checkLastTweets();
+
+
+
         $rows = SimilarityTweets::select('user_id', 'tweet_id', 'similarity')->get();
         $table="";
+        $count = 1;
         foreach ($rows as $row) {
 
             $table .= "<table class=' thumbnail table table-condensed table-bordered table-striped bg-info table-hover  '>";
             $table .= "<tr><th>num</th><th>User Name</th><th>Tweet ID (deleted)</th><th>Text</th><th>Information</th></tr>";
-            $table .= "<tr><td>" . "" . "</td><td>" . $row['user_id'] . "</td><td>" . $row['tweet_id'] . "</td><td>";
+            $table .= "<tr><td>" . "$count" . "</td><td>" . $row['user_id'] . "</td><td>" . $row['tweet_id'] . "</td><td>";
             $content = "";
 
             $div = "<div class='col-sm-12 thumbnail bg-warning'>";
@@ -57,19 +65,26 @@ class SimilaritiesController extends Controller
                     }
 
                     $content.="'><span >percentage:" . $value->similarity[1] . "</span><br><br>Matching characters : " . $value->similarity[0] . "</td></tr>";
-                    $content .= "<tr><td>lev</td><td><br>" . (100 - ((int)$value->lev)*100 /strlen($text1)). "%</td></tr>";
+                    $content .= "<tr><td>lev</td><td>Num. of caharacters :".$value->lev."<br>" . (100 - ((int)$value->lev)*100 /strlen($text1)). "%</td></tr>";
                     $content .= "<tr>$texts</tr></table></div>";
 
                 }
+
 
             }
 
             $table .= "<h4 class='text-right'>".$text1."</h4></td><td>".$div .$content. $ldiv . "</td></tr>";
             $table .= "</table>";
+            $count++;
 
         }
         return $table;
 
 
+    }
+
+    function deleteAllSimilarities(){
+        SimilarityTweets::truncate();
+        return redirect(route('tweets'));
     }
 }

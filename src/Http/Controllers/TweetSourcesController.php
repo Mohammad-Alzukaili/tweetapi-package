@@ -53,13 +53,20 @@ class TweetSourcesController extends Controller
 
 
 
+    function getUserIDFScreenName($screenName)
+    {
+        $userID = TweetSources::select('user_id')->where('screen_name', '=', $screenName)->pluck('user_id');
+        return $userID[0];
+    }
 
     function deleteSource(Request $request)
     {
         $screen_name = $request->input('screen_name');
+        if(DataTweets::where('user_id',$this->getUserIDFScreenName($screen_name))->count() >0 ){
+            return redirect(route('tweets'));
+        }
 
         TweetSources::where('screen_name', $screen_name)->delete();
-
         return redirect(route("tweets"));
 
     }

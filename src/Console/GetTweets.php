@@ -64,9 +64,19 @@ class GetTweets extends Command
             //get last tweet in table related with the user id
 
             $last_tweet = DataTweets::select('tweets_id')->where('user_id', $source['user_id'])->orderBy('created_at', 'desc')->first();
-            $since_id = $last_tweet['tweets_id'];
+//            $since_id = $last_tweet['tweets_id'];
 
-            $data = Twitter::getUserTimeline(['user_id' => $source['user_id'], 'since_id' => $since_id, 'count' => 200, 'include_rts' => false, 'format' => 'array']);
+            if (!empty($last_tweet)) {
+                $since_id = $last_tweet['tweets_id'];
+
+                $data = Twitter::getUserTimeline(['user_id' => $source['user_id'], 'since_id' => $since_id, 'count' => 200, 'include_rts' => false, 'format' => 'array']);
+            } else {
+                $data = Twitter::getUserTimeline(['user_id' => $source['user_id'], 'count' => 200, 'include_rts' => false, 'format' => 'array']);
+
+            }
+
+
+            //$data = Twitter::getUserTimeline(['user_id' => $source['user_id'], 'since_id' => $since_id, 'count' => 200, 'include_rts' => false, 'format' => 'array']);
             if (isset($data)) {
                 foreach ($data as $datum) {
                     DataTweets::create([
@@ -86,6 +96,7 @@ class GetTweets extends Command
             }
         }
         fclose($handle);
+
         $this->info('done');
     }
 }

@@ -11,6 +11,7 @@ use Mawdoo3\Tweets\Model\DataTweets;
 use Mawdoo3\Tweets\Model\SimilarityTweets;
 use Mawdoo3\Tweets\Http\Controllers\SimilaritiesController;
 
+
 use Twitter;
 
 class CheckTweets extends Command
@@ -48,59 +49,82 @@ class CheckTweets extends Command
      */
     public function handle()
     {
+        //todo: check logs with laravel and replace it with below
+
         // open file to log new check
-        $path = base_path("public") . "/output";
-        if (!file_exists($path)) {
-            File::makeDirectory($path, $mode = 0777, true, true);
-        }
-        $handle = fopen($path . "/" . 'log-check-tweets.log', 'a+');
-        fwrite($handle, "\n**********\nNew Check " . now() . " occured \n");
 
         //get all sources
+
+        $array = [];
+        $counterForPredictedToDelete = 0;
+        $subHours = 1;
+
         $sources = TweetSources::select('user_id')->pluck('user_id')->toArray();
+
+
         foreach ($sources as $source) {
-            //get tweets up to 100 for this source for last hour
-            $tweets = DataTweets::select('tweets_id')->where([['user_id', '=', $source], ['created_at', '>', Carbon::now()->subHour()]])->orderBy('created_at', 'desc')->take(100)->pluck('tweets_id')->toArray();
+
+            $tweets = DataTweets::select('tweets_id', 'title')->where([['user_id', '=', $source], ['created_at', '>', Carbon::now()->subHours($subHours)]])->orderBy('created_at', 'desc')->get();
 
             if (isset($tweets)) {
-                $tweets_ids = implode(',',$tweets);
-                $tweets_objects = Twitter::getStatusesLookup(['id' => $tweets_ids]);
+                //todo: check similar tweets
+                // for each tweets as tweet : check if it any similar with
+                for ($i = 0; $i < count($tweets); $i++) {
+                    $tweet = $tweets[$i];
 
-                //get objects ids store them in array
-                $tweets_objects_ids = [];
+                    for ($j = $i; $j < count($tweets); $j++) {
+                        $another_tweet = $tweets[$j];
 
-                $count = 0;
-                foreach ($tweets_objects as $tweets_object) {
-                    $tweets_objects_ids[$count] = $tweets_object->id;
-                    $count++;
-                }
 
-                fwrite($handle, "\n------ source id :" . $source . "\n");
+                        if ($tweet['tweets_id'] == $another_tweet['tweets_id'] || $tweet['checked'] == 1) {
+                            continue;
+                        }
 
-                //check if deleted or not and flag them in database
-                foreach ($tweets as $tweet) {
-
-                    if (!in_array($tweet, $tweets_objects_ids)) {
-                        //change flag to deleted (1)
-                        $this->info($tweet . " : deleted\n");
-                        DataTweets::where('tweets_id', $tweet)->update(['isDeleted' => 1]);
-
-                        fwrite($handle, now() . " tweet id : " . $tweet . " -    : the tweet is 'deleted' " . " \n");
-                    } else {
-                        $this->info($tweet . " : not deleted\n");
-
-                        fwrite($handle, now() . " tweet id : " . $tweet . " -    : the tweet is 'not deleted' " . " \n");
+                        $sim = similar_text($tweet['title'], $another_tweet['title'], $perc);
+                        if ($perc > 90) {
+                            //set checked flag
+                            //DataTweets::where('tweets_id', $another_tweet['tweets_id'])->update(['checked' => 1]);
+                            array_push($array, $another_tweet['tweets_id']);
+                            $counterForPredictedToDelete++;
+                        }
                     }
                 }
-            } else {
-                continue;
             }
         }
-        fclose($handle);
 
-        //check similarity
+
+        //collect all ids in array of sizes 100
+        $newArray = array_chunk($array, 100);
+        $counterForDeletedTweets = 0; //to count the num of tweets was deleted from twitter
+
+        //todo: send lookup requests to check list
+        foreach ($newArray as $arr) {
+            $tweets_objects = Twitter::getStatusesLookup(['id' => implode(',', $arr)]);
+            $count = 0;
+            $tweets_objects_ids=[];
+            foreach ($tweets_objects as $tweets_object) {
+                $tweets_objects_ids[$count] = $tweets_object->id;
+                $count++;
+            }
+
+            foreach ($arr as $id) {
+                if (!in_array($id, $tweets_objects_ids)) {
+                    //DataTweets::where('tweets_id', $id)->update(['isDeleted' => 1]);
+                    $counterForDeletedTweets++;
+                }
+            }
+
+
+       //show deleted tweets
+
+        }
         $ob = new GetTweetsController();
-        $ob->checkLastTweets();
+        if($counterForPredictedToDelete !=0 ) {
+            $this->info("prediction success :" . ($counterForDeletedTweets / $counterForPredictedToDelete * 100) . "%");
+        }else{
+            $this->info("no Predicted tweets to be duplicated");
+        }
+
     }
 }
 

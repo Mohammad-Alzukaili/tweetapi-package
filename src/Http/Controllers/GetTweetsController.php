@@ -58,11 +58,13 @@ class GetTweetsController extends Controller
         fwrite($handle, "\n-------- check similarities  ----- \n");
 
 
+
+
         $sources = TweetSources::all()->pluck('user_id')->toArray();
         foreach ($sources as $user_id) {
 
-            $deleted_tweets = DataTweets::select('tweets_id', 'created_at', 'title')->where([['user_id', '=', $user_id], ['isDeleted', 1], ['checked',false], ['created_at', '>', Carbon::now()->subHours(1)]])->orderBy('created_at', 'desc')->get();
-            var_dump($deleted_tweets);
+            $deleted_tweets = DataTweets::select('tweets_id', 'created_at', 'title')->where([['user_id', '=', $user_id], ['isDeleted', 0], ['checked',false], ['created_at', '>', Carbon::now()->subHours(5)]])->orderBy('created_at', 'desc')->get();
+            //dd($deleted_tweets);
             $sim_arr = [];
 
             foreach ($deleted_tweets as $deleted_tweet) {
@@ -81,11 +83,6 @@ class GetTweetsController extends Controller
                     foreach ($tweets_before_deleted as $obj) {
                         fwrite($handle, "tweet id :  ----- " . $deleted_tweet['tweets_id'] . "\n");
 
-                        //algorithms for check similarity
-//                        $soundex1 = soundex($obj['title']);
-//                        $soundex2 = soundex($deleted_tweet['title']);
-//                        $sim_soundex = similar_text($soundex1, $soundex2, $per2);
-
                         //similar_text : return num of mathcing characters
                         $sim = similar_text($obj['title'], $deleted_tweet['title'], $per);
 
@@ -99,10 +96,6 @@ class GetTweetsController extends Controller
                     //check similiarity of texts for two nearest tweets in date
                     $aft_sim_arr = [];
                     foreach ($tweets_after_deleted as $obj) {
-//                        $soundex1 = soundex($obj['title']);
-//                        $soundex2 = soundex($deleted_tweet['title']);
-//                        $sim_soundex = similar_text($soundex1, $soundex2, $per2);
-
 
                         //similar_text : return num of mathcing characters
                         $sim = similar_text($obj['title'], $deleted_tweet['title'], $per);
@@ -131,16 +124,21 @@ class GetTweetsController extends Controller
         }
         fclose($handle);
 
-        //return redirect(route('tweets'));
+        return redirect(route('tweets'));
 
 
     }
 
 
+
+
+
+
+
+
     //test function to get last tweets from one source
     function getLastTweets(Request $request)
     {
-
         $source_screenName = $request->input('screen_name');
         $source_id = $this->getUserIDFScreenName($source_screenName);
         $last_tweet = DataTweets::select('tweets_id')->where('user_id', $source_id)->orderBy('created_at', 'desc')->first();
@@ -170,7 +168,6 @@ class GetTweetsController extends Controller
                 'payload' => json_encode($datum),
                 'created_at' => strtotime($datum['created_at'])
             ]);
-
             fwrite($handle, " ---- INSERT tweet id :" . $datum['id'] . "  \n");
         }
         fclose($handle);
@@ -185,6 +182,25 @@ class GetTweetsController extends Controller
         return $userID[0];
 
     }
+
+
+
+
+    function collectDeletedTweets($hours){
+        $tweets = DataTweets::select('tweets_id', 'title')->where([['created_at', '>', Carbon::now()->subHours($hours)],['isDeleted',1]])->orderBy('created_at', 'desc')->get();
+        dd($tweets);
+
+    }
+
+
+    function deleteAllTweets(Request $request){
+        $source_screen_name = $request->input('screen_name');
+
+        DataTweets::where('user_id',$this->getUserIDFScreenName($source_screen_name))->delete();
+        return redirect(route('tweets'));
+
+    }
+
 
 
 }
